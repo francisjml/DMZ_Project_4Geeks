@@ -1,0 +1,114 @@
+# DMZ Configuration Report with Cisco Packet Tracer
+
+### 1. Lab Objective
+ 
+Configuring a secure DMZ using a Cisco ISR router, applying NAT and ACLs to control traffic between LAN, DMZ, and the external network.
+
+
+### 2. Implemented Topology
+
+
+- Number of networks: 3
+
+- Devices used: 7 devices in total, 3 Switches, 2 PCs, 1 Server, and one Router.
+
+                INTRANET	             DMZ	                         EXTERNAL
+Trust	        HIGH	                     MEDIA	                         ZERO
+Access	        Employees                    Employees + Public	                 Everyone online
+Content	        Sensitive Data	             Public Services	                 Internet
+Protection	VERY HIGH	             Media	                         VERY HIGH
+
+### 3. IP Addressing Plan
+
+| Device                  | IP              | Mask              | Gateway           |
+|-------------------------|-----------------|-------------------|-------------------|
+| PC_Internal             | 192.168.1.10    |  255.255.255.0    | 192.168.1.1       |
+| Server_DMZ              | 192.168.2.10    |  255.255.255.0    | 192.168.2.1       |
+| PC_External             | 192.168.3.10    |  255.255.255.0    | 192.168.3.1       |
+| Router_FW Gi0/0 (LAN)   | 192.168.1.1     |  255.255.255.0    |                   |
+| Router_FW Gi0/1 (DMZ)   | 192.168.2.1     |  255.255.255.0    |                   |
+| Router_FW Gi0/2 (Ext)   | 192.168.3.1     |  255.255.255.0    |                   |
+
+### 4. Applied Configuration (Summary)
+
+1. ACL: Internet → DMZ (HTTP only to server)
+
+Create extended ACL
+ip access-list extended INTERNET_TO_DMZ
+
+Allow only HTTP (port 80) to server's public IP
+permit tcp any host 192.168.3.1 eq www
+
+Deny everything else from Internet
+deny ip any any
+
+Apply to WAN interface inbound (traffic COMING FROM Internet)
+interface GigabitEthernet0/2
+ip access-group INTERNET_TO_DMZ in
+
+2. ACL: LAN → DMZ (Controlled access from internal network)
+
+ip access-list extended LAN_TO_DMZ
+
+Allow HTTP from LAN to DMZ server
+permit tcp 192.168.1.0 0.0.0.255 host 192.168.2.10 eq www
+
+Allow responses to established connections
+permit tcp 192.168.1.0 0.0.0.255 host 192.168.2.10 established
+
+Allow ping from LAN to DMZ server
+permit icmp 192.168.1.0 0.0.0.255 host 192.168.2.10
+
+Deny everything else
+deny ip any any
+
+Apply to LAN interface inbound
+interface GigabitEthernet0/0
+ ip access-group LAN_TO_DMZ in
+
+3. ACL: DMZ → LAN
+
+ip access-list extended DMZ_TO_LAN_BLOCK
+
+DENY ALL traffic from DMZ to LAN
+deny ip 192.168.2.0 0.0.0.255 192.168.1.0 0.0.0.255
+
+Allow other traffic from DMZ
+permit ip any any
+
+Apply to DMZ interface inbound
+interface GigabitEthernet0/1
+ip access-group DMZ_TO_LAN_BLOCK in
+
+### 5. Verifications Performed
+
+From PC_External (Web Browser):
+Accessing web DMZ (192.168.3.1). Worked.
+
+From PC_External (Command Prompt):
+ping 192.168.3.1 (Public Server IP). Request timed out.
+
+From PC_Internal (Web Browser):
+Accessing web DMZ (192.168.2.10). Timed out, the rules are correct, but got stuck.
+
+From Server-PT Web_DMZ (Command Prompt):
+ping 192.168.1.10 (Ping PC_Internal). Request timed out.
+
+### 6. Conclusions and Recommendations
+
+Built 3-zone network: LAN, DMZ, External with proper IP addressing
+Configured NAT: Exposed DMZ server securely (192.168.2.10 → 192.168.3.1)
+Implemented ACL firewall rules:
+
+Internet → DMZ: Only HTTP/HTTPS allowed
+
+LAN → DMZ: Controlled access
+
+DMZ → LAN: BLOCKED ALL (critical security)
+Validated security: Internal users access services, external only via NAT, DMZ isolated from LAN
+
+Secure network segmentation following security best practices.
+
+### 7. Evidence Screenshots
+
+There is a .zip file with the screenshots
